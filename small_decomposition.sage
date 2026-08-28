@@ -54,13 +54,14 @@ def orthogonal_projector(n):
     N = factorial(n)
     S = get_permutation_basis(n)
     B = S.right_kernel_matrix()
-    G, _ = B.gram_schmidt()
-    K = (G * G.T).apply_map(sqrt)^-1 * G
-    L = K.T * K
-    assert L == B.T * (B * B.T)^-1 * B
+    # G, _ = B.gram_schmidt()
+    # K = (G * G.T).apply_map(sqrt)^-1 * G
+    # L = K.T * K
+    # assert L == B.T * (B * B.T)^-1 * B
     I = identity_matrix(N)
 
-    return (I - L)
+    return I - (B.T * (B * B.T)^-1 * B)
+
 
 def compute_alpha_k(p_k, a_k, W_k, N):
     """
@@ -102,7 +103,6 @@ def active_set_bvn_decompose(A, a):
         [matrix(_1), zero_matrix(1, n * n), zero_matrix(1, 1)],
     ])
 
-    k = 0
     a_k = a
     W_k = {i for i in range(N) if a_k[i] == 0}
     while True:
@@ -159,23 +159,37 @@ def k(A, minimize=True):
         h += A[i, j]
     return h
 
-
+import time, sys
 n = 5
-Q = orthogonal_projector(n)
+
 A, a = random_bistochastix(n)
-u = Q * a
 # Loop until we generate a random bistochastic matrix which orthogonal
 # projection is the smallest BvN decomp. Compare it against the decomp. obtained
 # by solving the QP.
-while any(e < 0 for e in u):
+while k(A) < (n - 2) / (n - 1):
     A, a = random_bistochastix(n)
-    u = Q * a
+
+t = time.time()
+print("Computing projector...", end="")
+sys.stdout.flush()
+Q = orthogonal_projector(n)
+u = Q * a
+print(f"done in {time.time() - t}")
+
+t = time.time()
+print("Solving QP...", end="")
+sys.stdout.flush()
 u_qp = active_set_bvn_decompose(A, a)
+print(f"done in {time.time() - t}")
 
 assert verify_decomposition(u, A)
 assert verify_decomposition(u_qp, A)
 assert u == u_qp
 
 A, a = random_bistochastix(n)
+t = time.time()
+print("Solving QP...", end="")
+sys.stdout.flush()
 u_qp = active_set_bvn_decompose(A, a)
+print(f"done in {time.time() - t}")
 assert verify_decomposition(u_qp, A)
